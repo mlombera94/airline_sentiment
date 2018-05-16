@@ -282,12 +282,12 @@ lapply(tweet_corpus[1:5], as.character)
 #Convert text to lowercase 
 tweet_corpus_clean <- tm_map(tweet_corpus, content_transformer(tolower))
 
-#remove numbres, stopwords, and punctuation
+#remove numbers, stopwords, and punctuation
 tweet_corpus_clean <- tm_map(tweet_corpus_clean, removeNumbers)
 tweet_corpus_clean <- tm_map(tweet_corpus_clean, removeWords, stopwords('english'))
 tweet_corpus_clean <- tm_map(tweet_corpus_clean, removePunctuation)
 
-#Check to see if clean
+#Check to see if corpus is clean
 lapply(tweet_corpus_clean[1:5], as.character)
 ```
 
@@ -306,7 +306,7 @@ lapply(tweet_corpus_clean[1:5], as.character)
     ## $`5`
     ## [1] "    really big bad thing  "
 
-#### Wordstemo and check final clean corpus
+#### Wordstem and check final clean corpus
 
 ``` r
 #wordstem and strip whitespace 
