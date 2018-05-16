@@ -1,2 +1,2 @@
 # airline_sentiment
-Airline sentiment using Naive-Bayes Classification of airline tweets
+Airline sentiment classification of airline tweets using Naive-Bayes Classification machine learning algorithm.
