@@ -61,6 +61,21 @@ library(ROCR)
     ## 
     ##     lowess
 
+``` r
+library(dplyr)
+```
+
+    ## 
+    ## Attaching package: 'dplyr'
+
+    ## The following objects are masked from 'package:stats':
+    ## 
+    ##     filter, lag
+
+    ## The following objects are masked from 'package:base':
+    ## 
+    ##     intersect, setdiff, setequal, union
+
 Step 1: Load the data
 =====================
 
@@ -88,7 +103,7 @@ tweets <- read_csv("Tweets.csv")
     ## )
 
 ``` r
-head(tweets, n = 10)
+tweets %>% head(n = 10)
 ```
 
     ## # A tibble: 10 x 15
@@ -172,7 +187,7 @@ str(tweets)
 ``` r
 tweets <- tweets[, -c(1, 3, 5, 7, 9, 10, 12, 13, 14, 15)]
 
-head(tweets, n = 10)
+tweets %>% head(n = 10)
 ```
 
     ## # A tibble: 10 x 5
@@ -193,8 +208,8 @@ head(tweets, n = 10)
 
 ``` r
 #convert to factor before using table
-tweets$airline_sentiment <- as.factor(tweets$airline_sentiment)
-tweets$airline <- as.factor(tweets$airline)
+tweets$airline_sentiment %>% as.factor() -> tweets$airline_sentiment
+tweets$airline %>% as.factor() -> tweets$airline 
 
 table(tweets$airline_sentiment)
 ```
@@ -215,10 +230,13 @@ table(tweets$airline)
 
 ``` r
 #Plot proportion table of airlines with their airline sentiment
-ggplot(tweets, aes(x = airline, fill = airline_sentiment)) + geom_bar(position = "fill")
+tweets %>% ggplot(aes(x = airline, fill = airline_sentiment)) + 
+  geom_bar(position = "fill")
 ```
 
-![](NB_Classification__Pos,_Neg,_Nue__files/figure-markdown_github/unnamed-chunk-4-1.png) \# \#\#\#\#Begin preparing the text data
+![](NB_Classification__Pos,_Neg,_Nue__files/figure-markdown_github/unnamed-chunk-4-1.png)
+
+Begin preparing the text data
 
 ``` r
 #Get rid of special characters
@@ -236,29 +254,24 @@ tweets$text[1:5]
 
 ``` r
 #remove @airline name as it is not neccessary
-stopwords = c("American", "Delta", "Southwest", "United", "US Airways", "VirginAmerica", "SouthwestAirlines", "AmericanAirlines" )
-tweets$text <- removeWords(tweets$text,stopwords)
+stopwords = c("American", "Delta", "Southwest", "United", "US Airways", "VirginAmerica", "SouthwestAirlines", "AmericanAirlines")
+tweets$text %>% removeWords(stopwords) -> tweets$text
 
 #check to make sure words were removed 
-tweets$text[1:10]
+tweets$text[1:5]
 ```
 
-    ##  [1] " What dhepburn said"                                                                                                 
-    ##  [2] " plus youve added commercials to the experience tacky"                                                               
-    ##  [3] " I didnt today Must mean I need to take another trip"                                                                
-    ##  [4] " its really aggressive to blast obnoxious entertainment in your guests faces &amp they have little recourse"         
-    ##  [5] " and its a really big bad thing about it"                                                                            
-    ##  [6] " seriously would pay 30 a flight for seats that didnt have this playingits really the only bad thing about flying VA"
-    ##  [7] " yes nearly every time I fly VX this ear worm wont go away "                                                         
-    ##  [8] " Really missed a prime opportunity for Men Without Hats parody there https//tco/mWpG7grEZP"                          
-    ##  [9] "virginamerica Well I didntbut NOW I DO -D"                                                                           
-    ## [10] " it was amazing and arrived an hour early Youre too good to me"
+    ## [1] " What dhepburn said"                                                                                        
+    ## [2] " plus youve added commercials to the experience tacky"                                                      
+    ## [3] " I didnt today Must mean I need to take another trip"                                                       
+    ## [4] " its really aggressive to blast obnoxious entertainment in your guests faces &amp they have little recourse"
+    ## [5] " and its a really big bad thing about it"
 
 ``` r
 #create corpus and examine it 
-tweet_corpus <- VCorpus(VectorSource(tweets$text))
+tweets$text %>% VectorSource() %>% VCorpus() -> tweet_corpus
 
-lapply(tweet_corpus[1:5], as.character)
+tweet_corpus[1:5] %>% lapply(as.character)
 ```
 
     ## $`1`
@@ -280,15 +293,16 @@ lapply(tweet_corpus[1:5], as.character)
 
 ``` r
 #Convert text to lowercase 
-tweet_corpus_clean <- tm_map(tweet_corpus, content_transformer(tolower))
+tweet_corpus %>% tm_map(content_transformer(tolower)) -> tweet_corpus_clean
 
 #remove numbers, stopwords, and punctuation
-tweet_corpus_clean <- tm_map(tweet_corpus_clean, removeNumbers)
-tweet_corpus_clean <- tm_map(tweet_corpus_clean, removeWords, stopwords('english'))
-tweet_corpus_clean <- tm_map(tweet_corpus_clean, removePunctuation)
+tweet_corpus_clean %>% tm_map(removeNumbers) %>% 
+  tm_map(removeWords, stopwords('english')) %>% 
+  tm_map(removePunctuation) -> tweet_corpus_clean
+
 
 #Check to see if corpus is clean
-lapply(tweet_corpus_clean[1:5], as.character)
+tweet_corpus_clean[1:5] %>% lapply(as.character)
 ```
 
     ## $`1`
@@ -309,133 +323,141 @@ lapply(tweet_corpus_clean[1:5], as.character)
 #### Wordstem and check final clean corpus
 
 ``` r
-#wordstem and strip whitespace 
-tweet_corpus_clean <- tm_map(tweet_corpus_clean, stemDocument)
-tweet_corpus_clean <- tm_map(tweet_corpus_clean, stripWhitespace)
-
-#remove other common words that dont help with sentiment
+#After word cloud visualization, came back and added more words to remove
 stopwords2 <- c("southwestair", "americanair", "jetblu", "usairway", "will", "newark", "houston", "airport",  "airlin", "just", "lax", "can", "ive", "flightl", "jfk", "what", "let", "want", "flightr", "your",  "that", "follow", "one", "flt", "fli", "even", "use", "week", "two", "anoth", "see", "make", "got", "said", "tonight",  "tomorrow", "put", "year", "dfw", "today", "get", "yet", "number", "told", "day", "also", "morn", "min", "someon", "flight", "fleek",  "tweet")
 
 #words that were taken out but could still add sentiment to tweets
 #"gate", "plane", "travel", "pilot", "due", "mile",  "made", "unit", "website", "night", "agent", "point", "onlin", "email", "amp", "keep", "miss", "system", "guy", "show", "think", "websit", "fleet"
 
-tweet_corpus_clean <- tm_map(tweet_corpus_clean, removeWords, stopwords2)
-
-#create dataframe
-tweet_dtm <- DocumentTermMatrix(tweet_corpus_clean)
+#remove other common words that dont help with sentiment, wordstem and strip whitespace and create a dataframe
+tweet_corpus_clean %>% tm_map(removeWords, stopwords2) %>% 
+  tm_map(stemDocument) %>% 
+  tm_map(stripWhitespace) %>% 
+  DocumentTermMatrix() -> tweet_dtm
 
 #Check final text 
-lapply(tweet_corpus_clean[1:5], as.character)
+tweet_corpus_clean[1:5] %>% lapply(as.character)
 ```
 
     ## $`1`
-    ## [1] "dhepburn "
+    ## [1] "  dhepburn said"
     ## 
     ## $`2`
-    ## [1] "plus youv ad commerci experi tacki"
+    ## [1] " plus youve added commercials   experience tacky"
     ## 
     ## $`3`
-    ## [1] "didnt  must mean need take  trip"
+    ## [1] "  didnt today must mean  need  take another trip"
     ## 
     ## $`4`
-    ## [1] "realli aggress blast obnoxi entertain guest face amp littl recours"
+    ## [1] "  really aggressive  blast obnoxious entertainment   guests faces amp   little recourse"
     ## 
     ## $`5`
-    ## [1] "realli big bad thing"
+    ## [1] "    really big bad thing  "
 
 ``` r
 tweet_dtm
 ```
 
-    ## <<DocumentTermMatrix (documents: 14640, terms: 11353)>>
-    ## Non-/sparse entries: 108693/166099227
+    ## <<DocumentTermMatrix (documents: 14640, terms: 11391)>>
+    ## Non-/sparse entries: 119183/166645057
     ## Sparsity           : 100%
     ## Maximal term length: 46
     ## Weighting          : term frequency (tf)
 
-#### Create training and test dataframe and lables
+#### Create training, validation and test dataframe and labels
 
 ``` r
 #create random sample
 set.seed(123)
-rand_sam <- sample(14640, 13640)
+idx <- sample(seq(1, 3), size = nrow(tweet_dtm), replace = TRUE, prob = c(.8, .2, .2 ))
 
-#training and test 
-tweet_dtm_train <- tweet_dtm[rand_sam, ]
-tweet_dtm_test <- tweet_dtm[-rand_sam, ]
+#training, test, and validation
+tweet_dtm_train <- tweet_dtm[idx == 1, ]
+tweet_dtm_test <- tweet_dtm[idx == 2,]
+tweet_dtm_validation <- tweet_dtm[idx == 3,]
 
 #labels 
-tweet_train_labels <- tweets[rand_sam, ]$airline_sentiment
-tweet_test_labels <- tweets[-rand_sam, ]$airline_sentiment
+tweet_train_labels <- tweets[idx == 1, ]$airline_sentiment
+tweet_test_labels <- tweets[idx == 2, ]$airline_sentiment
+tweet_validation_labels <- tweets[idx == 3, ]$airline_sentiment
 
 #check that proportions are similar
-prop.table(table(tweet_train_labels))
+tweet_train_labels %>% table() %>% prop.table()
 ```
 
-    ## tweet_train_labels
+    ## .
     ##  negative   neutral  positive 
-    ## 0.6269795 0.2111437 0.1618768
+    ## 0.6255484 0.2107948 0.1636568
 
 ``` r
-prop.table(table(tweet_test_labels))
+tweet_test_labels %>% table() %>% prop.table()
 ```
 
-    ## tweet_test_labels
-    ## negative  neutral positive 
-    ##    0.626    0.219    0.155
+    ## .
+    ##  negative   neutral  positive 
+    ## 0.6279167 0.2129167 0.1591667
+
+``` r
+tweet_validation_labels %>% table() %>% prop.table()
+```
+
+    ## .
+    ##  negative   neutral  positive 
+    ## 0.6314063 0.2140221 0.1545715
 
 #### Word Cloud visualization
 
 ``` r
-wordcloud(tweet_corpus_clean,  max.words = 150, min.freq = 5, random.order = F)
+tweet_corpus_clean %>% wordcloud(max.words = 150, min.freq = 5, random.order = F)
 ```
 
 ![](NB_Classification__Pos,_Neg,_Nue__files/figure-markdown_github/unnamed-chunk-9-1.png) \# \#\#\#\#Subset the data to visualize common words for each sentiment
 
 ``` r
-positive <- subset(tweets, airline_sentiment== "positive")
-negative <- subset(tweets, airline_sentiment== "negative")
-nuetral <- subset(tweets, airline_sentiment== "neutral")
+tweets %>% subset(airline_sentiment== "positive") -> positive
+tweets %>% subset(airline_sentiment== "negative") -> negative
+tweets %>% subset(airline_sentiment== "neutral") -> neutral
 
-wordcloud(positive$text, max.words = 100, scale = c(3, .5))
+positive$text %>% wordcloud(max.words = 100, scale = c(3, .5))
 ```
 
 ![](NB_Classification__Pos,_Neg,_Nue__files/figure-markdown_github/unnamed-chunk-10-1.png)
 
 ``` r
-wordcloud(negative$text, max.words = 100, scale = c(3, .5))
+negative$text %>% wordcloud(max.words = 100, scale = c(3, .5))
 ```
 
 ![](NB_Classification__Pos,_Neg,_Nue__files/figure-markdown_github/unnamed-chunk-10-2.png)
 
 ``` r
-wordcloud(nuetral$text, max.words = 100, scale = c(3, .5))
+neutral$text %>% wordcloud(max.words = 100, scale = c(3, .5))
 ```
 
 ![](NB_Classification__Pos,_Neg,_Nue__files/figure-markdown_github/unnamed-chunk-10-3.png) \# \# \#Step 3: Training a model on the data
 
 ``` r
-tweet_dtm_freq_train <- removeSparseTerms(tweet_dtm_train, 0.999)
+tweet_dtm_train %>% removeSparseTerms(0.999) -> tweet_dtm_freq_train
 tweet_dtm_freq_train
 ```
 
-    ## <<DocumentTermMatrix (documents: 13640, terms: 1054)>>
-    ## Non-/sparse entries: 81398/14295162
+    ## <<DocumentTermMatrix (documents: 9801, terms: 1096)>>
+    ## Non-/sparse entries: 65607/10676289
     ## Sparsity           : 99%
     ## Maximal term length: 17
     ## Weighting          : term frequency (tf)
 
 ``` r
-tweet_freq_words <- findFreqTerms(tweet_dtm_train, 5)
+tweet_dtm_train %>% findFreqTerms(5) -> tweet_freq_words
 str(tweet_freq_words)
 ```
 
-    ##  chr [1:2060] "aadvantag" "abc" "abil" "abl" "abq" "absolut" "absurd" ...
+    ##  chr [1:1739] "aadvantag" "abc" "abl" "abq" "absolut" "absurd" ...
 
 #### Create DTMs with only the frequent terms
 
 ``` r
 tweet_dtm_freq_train <- tweet_dtm_train[ , tweet_freq_words]
+tweet_dtm_freq_validation <- tweet_dtm_validation[ , tweet_freq_words]
 tweet_dtm_freq_test <- tweet_dtm_test[ , tweet_freq_words]
 ```
 
@@ -446,27 +468,29 @@ convert_counts <- function(x) {
   x <- ifelse(x > 0, "Yes", "No")
 }
 
-tweet_train <- apply(tweet_dtm_freq_train, MARGIN = 2, convert_counts)
-tweet_test <- apply(tweet_dtm_freq_test, MARGIN = 2, convert_counts)
+tweet_dtm_freq_train %>% apply(MARGIN = 2, convert_counts) -> tweet_train
+tweet_dtm_freq_validation %>% apply(MARGIN = 2, convert_counts) -> tweet_validation 
+tweet_dtm_freq_test %>% apply(MARGIN = 2, convert_counts) -> tweet_test
 
-tweet_classifier <- naiveBayes(tweet_train, tweet_train_labels)
+tweet_train %>% naiveBayes(tweet_train_labels) -> tweet_classifier
 ```
 
-#### Evaluate the model's performance
+#### Evaluate the model's performance on the validation dataset
 
 ``` r
-tweet_test_pred <- predict(tweet_classifier, tweet_test)
+tweet_classifier %>% predict(tweet_validation) -> tweet_validation_pred
 
-head(tweet_test_pred, n = 15)
+tweet_validation_pred %>% head(n = 15)
 ```
 
-    ##  [1] neutral  positive negative positive positive negative negative
-    ##  [8] negative positive negative neutral  neutral  negative negative
+    ##  [1] positive negative positive negative negative negative positive
+    ##  [8] positive neutral  negative negative negative positive neutral 
     ## [15] neutral 
     ## Levels: negative neutral positive
 
 ``` r
-conf<- confusionMatrix(tweet_test_pred, tweet_test_labels)
+tweet_validation_pred %>% confusionMatrix(tweet_validation_labels) -> conf
+
 conf
 ```
 
@@ -474,36 +498,36 @@ conf
     ## 
     ##           Reference
     ## Prediction negative neutral positive
-    ##   negative      518      60       26
-    ##   neutral        78     132       25
-    ##   positive       30      27      104
+    ##   negative     1295     146       65
+    ##   neutral       174     304       58
+    ##   positive       71      72      254
     ## 
     ## Overall Statistics
     ##                                           
-    ##                Accuracy : 0.754           
-    ##                  95% CI : (0.7261, 0.7804)
-    ##     No Information Rate : 0.626           
+    ##                Accuracy : 0.7597          
+    ##                  95% CI : (0.7423, 0.7766)
+    ##     No Information Rate : 0.6314          
     ##     P-Value [Acc > NIR] : <2e-16          
     ##                                           
-    ##                   Kappa : 0.549           
-    ##  Mcnemar's Test P-Value : 0.4385          
+    ##                   Kappa : 0.5534          
+    ##  Mcnemar's Test P-Value : 0.2384          
     ## 
     ## Statistics by Class:
     ## 
     ##                      Class: negative Class: neutral Class: positive
-    ## Sensitivity                   0.8275         0.6027          0.6710
-    ## Specificity                   0.7701         0.8681          0.9325
-    ## Pos Pred Value                0.8576         0.5617          0.6460
-    ## Neg Pred Value                0.7273         0.8863          0.9392
-    ## Prevalence                    0.6260         0.2190          0.1550
-    ## Detection Rate                0.5180         0.1320          0.1040
-    ## Detection Prevalence          0.6040         0.2350          0.1610
-    ## Balanced Accuracy             0.7988         0.7354          0.8018
+    ## Sensitivity                   0.8409         0.5824          0.6737
+    ## Specificity                   0.7653         0.8790          0.9306
+    ## Pos Pred Value                0.8599         0.5672          0.6398
+    ## Neg Pred Value                0.7374         0.8854          0.9398
+    ## Prevalence                    0.6314         0.2140          0.1546
+    ## Detection Rate                0.5310         0.1246          0.1041
+    ## Detection Prevalence          0.6175         0.2198          0.1628
+    ## Balanced Accuracy             0.8031         0.7307          0.8022
 
 ``` r
-confusion_matrix <- as.data.frame(table(tweet_test_pred, tweet_test_labels))
+confusion_matrix <- as.data.frame(table(tweet_validation_pred, tweet_validation_labels))
 
-ggplot(data = confusion_matrix,      aes(x = tweet_test_pred, y = tweet_test_labels)) +
+confusion_matrix %>% ggplot(aes(x = tweet_validation_pred, y = tweet_validation_labels)) + 
   geom_tile(aes(fill = Freq)) +
   geom_text(aes(label = sprintf("%1.0f", Freq)), vjust = 1) +
   scale_fill_gradient(low = "#ff7f50",
@@ -511,13 +535,15 @@ ggplot(data = confusion_matrix,      aes(x = tweet_test_pred, y = tweet_test_lab
                       trans = "log")
 ```
 
-![](NB_Classification__Pos,_Neg,_Nue__files/figure-markdown_github/unnamed-chunk-14-1.png) \#\#\#\#75.5% classified accurately \# \#Step 5: Improve the model
+![](NB_Classification__Pos,_Neg,_Nue__files/figure-markdown_github/unnamed-chunk-14-1.png) \#\#\#\#75.97% classified accurately \# \#Step 5: Improve the model on the validation dataset
 
 ``` r
-tweet_classifier2 <- naiveBayes(tweet_train, tweet_train_labels, laplace = 1)
-tweet_test_pred2 <- predict(tweet_classifier2, tweet_test)
+tweet_train %>% naiveBayes(tweet_train_labels, laplace = 1) -> tweet_classifier2
 
-conf2<- confusionMatrix(tweet_test_pred2, tweet_test_labels)
+tweet_classifier2 %>% predict(tweet_validation) -> tweet_validation_pred2
+
+tweet_validation_pred2 %>% confusionMatrix(tweet_validation_labels) -> conf2
+
 conf2
 ```
 
@@ -525,36 +551,36 @@ conf2
     ## 
     ##           Reference
     ## Prediction negative neutral positive
-    ##   negative      543      67       27
-    ##   neutral        66     132       26
-    ##   positive       17      20      102
+    ##   negative     1326     170       71
+    ##   neutral       153     300       65
+    ##   positive       61      52      241
     ## 
     ## Overall Statistics
     ##                                           
-    ##                Accuracy : 0.777           
-    ##                  95% CI : (0.7499, 0.8025)
-    ##     No Information Rate : 0.626           
+    ##                Accuracy : 0.7655          
+    ##                  95% CI : (0.7481, 0.7822)
+    ##     No Information Rate : 0.6314          
     ##     P-Value [Acc > NIR] : <2e-16          
     ##                                           
-    ##                   Kappa : 0.5798          
-    ##  Mcnemar's Test P-Value : 0.382           
+    ##                   Kappa : 0.5545          
+    ##  Mcnemar's Test P-Value : 0.3769          
     ## 
     ## Statistics by Class:
     ## 
     ##                      Class: negative Class: neutral Class: positive
-    ## Sensitivity                   0.8674         0.6027          0.6581
-    ## Specificity                   0.7487         0.8822          0.9562
-    ## Pos Pred Value                0.8524         0.5893          0.7338
-    ## Neg Pred Value                0.7713         0.8879          0.9384
-    ## Prevalence                    0.6260         0.2190          0.1550
-    ## Detection Rate                0.5430         0.1320          0.1020
-    ## Detection Prevalence          0.6370         0.2240          0.1390
-    ## Balanced Accuracy             0.8080         0.7425          0.8071
+    ## Sensitivity                   0.8610         0.5747         0.63926
+    ## Specificity                   0.7319         0.8863         0.94520
+    ## Pos Pred Value                0.8462         0.5792         0.68079
+    ## Neg Pred Value                0.7546         0.8844         0.93477
+    ## Prevalence                    0.6314         0.2140         0.15457
+    ## Detection Rate                0.5437         0.1230         0.09881
+    ## Detection Prevalence          0.6425         0.2124         0.14514
+    ## Balanced Accuracy             0.7965         0.7305         0.79223
 
 ``` r
-confusion_matrix <- as.data.frame(table(tweet_test_pred2, tweet_test_labels))
+confusion_matrix2 <- as.data.frame(table(tweet_validation_pred2, tweet_validation_labels))
 
-ggplot(data = confusion_matrix,      aes(x = tweet_test_pred2, y = tweet_test_labels)) +
+confusion_matrix2 %>% ggplot(aes(x = tweet_validation_pred2, y = tweet_validation_labels)) +
   geom_tile(aes(fill = Freq)) +
   geom_text(aes(label = sprintf("%1.0f", Freq)), vjust = 1) +
   scale_fill_gradient(low = "#ff7f50",
@@ -562,4 +588,55 @@ ggplot(data = confusion_matrix,      aes(x = tweet_test_pred2, y = tweet_test_la
                       trans = "log")
 ```
 
-![](NB_Classification__Pos,_Neg,_Nue__files/figure-markdown_github/unnamed-chunk-15-1.png) \#\#\#\#77.2% classified accurately
+![](NB_Classification__Pos,_Neg,_Nue__files/figure-markdown_github/unnamed-chunk-15-1.png) \#\#\#\#76.55% classified accurately \# \# \#Final Test on test dataset
+
+``` r
+tweet_classifier2 %>% predict(tweet_test) -> tweet_test_pred
+
+tweet_test_pred %>% confusionMatrix(tweet_test_labels) -> conf3
+
+conf3
+```
+
+    ## Confusion Matrix and Statistics
+    ## 
+    ##           Reference
+    ## Prediction negative neutral positive
+    ##   negative     1286     157       74
+    ##   neutral       166     312       48
+    ##   positive       55      42      260
+    ## 
+    ## Overall Statistics
+    ##                                           
+    ##                Accuracy : 0.7742          
+    ##                  95% CI : (0.7569, 0.7908)
+    ##     No Information Rate : 0.6279          
+    ##     P-Value [Acc > NIR] : <2e-16          
+    ##                                           
+    ##                   Kappa : 0.5761          
+    ##  Mcnemar's Test P-Value : 0.3274          
+    ## 
+    ## Statistics by Class:
+    ## 
+    ##                      Class: negative Class: neutral Class: positive
+    ## Sensitivity                   0.8534         0.6106          0.6806
+    ## Specificity                   0.7413         0.8867          0.9519
+    ## Pos Pred Value                0.8477         0.5932          0.7283
+    ## Neg Pred Value                0.7497         0.8938          0.9403
+    ## Prevalence                    0.6279         0.2129          0.1592
+    ## Detection Rate                0.5358         0.1300          0.1083
+    ## Detection Prevalence          0.6321         0.2192          0.1487
+    ## Balanced Accuracy             0.7973         0.7486          0.8163
+
+``` r
+confusion_matrix3 <- as.data.frame(table(tweet_test_pred, tweet_test_labels))
+
+confusion_matrix3 %>% ggplot(aes(x = tweet_test_pred, y = tweet_test_labels)) +
+  geom_tile(aes(fill = Freq)) +
+  geom_text(aes(label = sprintf("%1.0f", Freq)), vjust = 1) +
+  scale_fill_gradient(low = "#ff7f50",
+                      high = "#003767",
+                      trans = "log")
+```
+
+![](NB_Classification__Pos,_Neg,_Nue__files/figure-markdown_github/unnamed-chunk-16-1.png) \#\#\#\#77.42% classified correctly
