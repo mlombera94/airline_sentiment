@@ -14,12 +14,13 @@ library(gmodels)
 library(ggplot2)
 library(caret)
 library(ROCR)
+library(dplyr)
 ```
 #
 #Step 1: Load the data
 ```{r}
 tweets <- read_csv("Tweets.csv")
-head(tweets, n = 10)
+tweets %>% head(n = 10)
 ```
 #
 #Step 2: Explore the data
@@ -28,23 +29,24 @@ str(tweets)
 
 tweets <- tweets[, -c(1, 3, 5, 7, 9, 10, 12, 13, 14, 15)]
 
-head(tweets, n = 10)
+tweets %>% head(n = 10)
 ```
 #
 ####Check proportions of negative, neutral, and positive
 ```{r}
 #convert to factor before using table
-tweets$airline_sentiment <- as.factor(tweets$airline_sentiment)
-tweets$airline <- as.factor(tweets$airline)
+tweets$airline_sentiment %>% as.factor() -> tweets$airline_sentiment
+tweets$airline %>% as.factor() -> tweets$airline 
 
 table(tweets$airline_sentiment)
 table(tweets$airline)
 
 #Plot proportion table of airlines with their airline sentiment
-ggplot(tweets, aes(x = airline, fill = airline_sentiment)) + geom_bar(position = "fill")
+tweets %>% ggplot(aes(x = airline, fill = airline_sentiment)) + 
+  geom_bar(position = "fill")
 ```
-#
-####Begin preparing the text data
+
+Begin preparing the text data
 ```{r}
 #Get rid of special characters
 tweets$text <- gsub("[^[:alnum:][:blank:]?&/\\-]", "", tweets$text)
@@ -53,51 +55,51 @@ tweets$text <- gsub("[^[:alnum:][:blank:]?&/\\-]", "", tweets$text)
 tweets$text[1:5]
 
 #remove @airline name as it is not neccessary
-stopwords = c("American", "Delta", "Southwest", "United", "US Airways", "VirginAmerica", "SouthwestAirlines", "AmericanAirlines" )
-tweets$text <- removeWords(tweets$text,stopwords)
+stopwords = c("American", "Delta", "Southwest", "United", "US Airways", "VirginAmerica", "SouthwestAirlines", "AmericanAirlines")
+tweets$text %>% removeWords(stopwords) -> tweets$text
 
 #check to make sure words were removed 
 tweets$text[1:10]
 
 #create corpus and examine it 
-tweet_corpus <- VCorpus(VectorSource(tweets$text))
+tweets$text %>% VectorSource() %>% VCorpus() -> tweet_corpus
 
-lapply(tweet_corpus[1:5], as.character)
+tweet_corpus[1:5] %>% lapply(as.character)
 ```
 #
 ####Clean up Corpus
 ```{r}
 #Convert text to lowercase 
-tweet_corpus_clean <- tm_map(tweet_corpus, content_transformer(tolower))
+tweet_corpus %>% tm_map(content_transformer(tolower)) -> tweet_corpus_clean
 
 #remove numbers, stopwords, and punctuation
-tweet_corpus_clean <- tm_map(tweet_corpus_clean, removeNumbers)
-tweet_corpus_clean <- tm_map(tweet_corpus_clean, removeWords, stopwords('english'))
-tweet_corpus_clean <- tm_map(tweet_corpus_clean, removePunctuation)
+tweet_corpus_clean %>% tm_map(removeNumbers) %>% 
+  tm_map(removeWords, stopwords('english')) %>% 
+  tm_map(removePunctuation) -> tweet_corpus_clean
+
 
 #Check to see if corpus is clean
-lapply(tweet_corpus_clean[1:5], as.character)
+tweet_corpus_clean[1:5] %>% lapply(as.character)
 ```
 #
 ####Wordstem and check final clean corpus 
 ```{r}
-#wordstem and strip whitespace 
-tweet_corpus_clean <- tm_map(tweet_corpus_clean, stemDocument)
-tweet_corpus_clean <- tm_map(tweet_corpus_clean, stripWhitespace)
-
-#remove other common words that dont help with sentiment
+#After word cloud visualization, came back and added more words to remove
 stopwords2 <- c("southwestair", "americanair", "jetblu", "usairway", "will", "newark", "houston", "airport",  "airlin", "just", "lax", "can", "ive", "flightl", "jfk", "what", "let", "want", "flightr", "your",  "that", "follow", "one", "flt", "fli", "even", "use", "week", "two", "anoth", "see", "make", "got", "said", "tonight",  "tomorrow", "put", "year", "dfw", "today", "get", "yet", "number", "told", "day", "also", "morn", "min", "someon", "flight", "fleek",  "tweet")
 
 #words that were taken out but could still add sentiment to tweets
 #"gate", "plane", "travel", "pilot", "due", "mile",  "made", "unit", "website", "night", "agent", "point", "onlin", "email", "amp", "keep", "miss", "system", "guy", "show", "think", "websit", "fleet"
 
-tweet_corpus_clean <- tm_map(tweet_corpus_clean, removeWords, stopwords2)
+#remove other common words that dont help with sentiment, wordstem and strip whitespace 
+tweet_corpus_clean %>% tm_map(removeWords, stopwords2) %>% 
+  tm_map(stemDocument) %>% 
+  tm_map(stripWhitespace) -> tweet_corpus_clean
 
 #create dataframe
-tweet_dtm <- DocumentTermMatrix(tweet_corpus_clean)
+tweet_corpus_clean %>% DocumentTermMatrix() -> tweet_dtm
 
 #Check final text 
-lapply(tweet_corpus_clean[1:5], as.character)
+tweet_corpus_clean[1:5] %>% lapply(as.character)
 tweet_dtm
 ```
 #
@@ -105,51 +107,58 @@ tweet_dtm
 ```{r}
 #create random sample
 set.seed(123)
-rand_sam <- sample(14640, 13640)
+idx <- sample(seq(1, 3), size = nrow(tweet_dtm), replace = TRUE, prob = c(.8, .2, .2 ))
 
-#training and test 
-tweet_dtm_train <- tweet_dtm[rand_sam, ]
-tweet_dtm_test <- tweet_dtm[-rand_sam, ]
+#training, test, and validation
+tweet_dtm_train <- tweet_dtm[idx == 1, ]
+tweet_dtm_test <- tweet_dtm[idx == 2,]
+tweet_dtm_validation <- tweet_dtm[idx == 3,]
+
+#tweet_dtm_train <- tweet_dtm[rand_sam, ]
+#tweet_dtm_test <- tweet_dtm[-rand_sam, ]
 
 #labels 
-tweet_train_labels <- tweets[rand_sam, ]$airline_sentiment
-tweet_test_labels <- tweets[-rand_sam, ]$airline_sentiment
+tweet_train_labels <- tweets[idx == 1, ]$airline_sentiment
+tweet_test_labels <- tweets[idx == 2, ]$airline_sentiment
+tweet_validation_labels <- tweets[idx == 3, ]$airline_sentiment
 
 #check that proportions are similar
-prop.table(table(tweet_train_labels))
-prop.table(table(tweet_test_labels))
+tweet_train_labels %>% table() %>% prop.table()
+tweet_test_labels %>% table() %>% prop.table()
+tweet_validation_labels %>% table() %>% prop.table()
 ```
 #
 ####Word Cloud visualization
 ```{r}
-wordcloud(tweet_corpus_clean,  max.words = 150, min.freq = 5, random.order = F)
+tweet_corpus_clean %>% wordcloud(max.words = 150, min.freq = 5, random.order = F)
 ```
 #
 ####Subset the data to visualize common words for each sentiment
 ```{r}
-positive <- subset(tweets, airline_sentiment== "positive")
-negative <- subset(tweets, airline_sentiment== "negative")
-nuetral <- subset(tweets, airline_sentiment== "neutral")
+tweets %>% subset(airline_sentiment== "positive") -> positive
+tweets %>% subset(airline_sentiment== "negative") -> negative
+tweets %>% subset(airline_sentiment== "neutral") -> neutral
 
-wordcloud(positive$text, max.words = 100, scale = c(3, .5))
-wordcloud(negative$text, max.words = 100, scale = c(3, .5))
-wordcloud(nuetral$text, max.words = 100, scale = c(3, .5))
+positive$text %>% wordcloud(max.words = 100, scale = c(3, .5))
+negative$text %>% wordcloud(max.words = 100, scale = c(3, .5))
+nuetral$text %>% wordcloud(max.words = 100, scale = c(3, .5))
 
 ```
 #
 #
 #Step 3: Training a model on the data
 ```{r}
-tweet_dtm_freq_train <- removeSparseTerms(tweet_dtm_train, 0.999)
+tweet_dtm_train %>% removeSparseTerms(0.999) -> tweet_dtm_freq_train
 tweet_dtm_freq_train
 
-tweet_freq_words <- findFreqTerms(tweet_dtm_train, 5)
+tweet_dtm_train %>% findFreqTerms(5) -> tweet_freq_words
 str(tweet_freq_words)
 ```
 #
 ####Create DTMs with only the frequent terms
 ```{r}
 tweet_dtm_freq_train <- tweet_dtm_train[ , tweet_freq_words]
+tweet_dtm_freq_validation <- tweet_dtm_validation[ , tweet_freq_words]
 tweet_dtm_freq_test <- tweet_dtm_test[ , tweet_freq_words]
 ```
 #
@@ -159,48 +168,71 @@ convert_counts <- function(x) {
   x <- ifelse(x > 0, "Yes", "No")
 }
 
-tweet_train <- apply(tweet_dtm_freq_train, MARGIN = 2, convert_counts)
-tweet_test <- apply(tweet_dtm_freq_test, MARGIN = 2, convert_counts)
+tweet_dtm_freq_train %>% apply(MARGIN = 2, convert_counts) -> tweet_train
+tweet_dtm_freq_validation %>% apply(MARGIN = 2, convert_counts) -> tweet_validation 
+tweet_dtm_freq_test %>% apply(MARGIN = 2, convert_counts) -> tweet_test
 
-tweet_classifier <- naiveBayes(tweet_train, tweet_train_labels)
+tweet_train %>% naiveBayes(tweet_train_labels) -> tweet_classifier
 ```
 #
 ####Evaluate the model's performance
 ```{r}
-tweet_test_pred <- predict(tweet_classifier, tweet_test)
+tweet_classifier %>% predict(tweet_validation) -> tweet_validation_pred
 
-head(tweet_test_pred, n = 15)
+tweet_validation_pred %>% head(n = 15)
 
-conf<- confusionMatrix(tweet_test_pred, tweet_test_labels)
+tweet_validation_pred %>% confusionMatrix(tweet_validation_labels) -> conf
+
 conf
 
-confusion_matrix <- as.data.frame(table(tweet_test_pred, tweet_test_labels))
+confusion_matrix <- as.data.frame(table(tweet_validation_pred, tweet_validation_labels))
 
-ggplot(data = confusion_matrix,      aes(x = tweet_test_pred, y = tweet_test_labels)) +
+confusion_matrix %>% ggplot(aes(x = tweet_validation_pred, y = tweet_validation_labels)) + 
   geom_tile(aes(fill = Freq)) +
   geom_text(aes(label = sprintf("%1.0f", Freq)), vjust = 1) +
   scale_fill_gradient(low = "#ff7f50",
                       high = "#003767",
                       trans = "log")
 ```
-####75.5% classified accurately
+####75.97% classified accurately
 #
 #Step 5: Improve the model
 ```{r}
-tweet_classifier2 <- naiveBayes(tweet_train, tweet_train_labels, laplace = 1)
-tweet_test_pred2 <- predict(tweet_classifier2, tweet_test)
+tweet_train %>% naiveBayes(tweet_train_labels, laplace = 1) -> tweet_classifier2
 
-conf2<- confusionMatrix(tweet_test_pred2, tweet_test_labels)
+tweet_classifier2 %>% predict(tweet_validation) -> tweet_validation_pred2
+
+tweet_validation_pred2 %>% confusionMatrix(tweet_validation_labels) -> conf2
+
 conf2
 
-confusion_matrix <- as.data.frame(table(tweet_test_pred2, tweet_test_labels))
+confusion_matrix2 <- as.data.frame(table(tweet_validation_pred2, tweet_validation_labels))
 
-ggplot(data = confusion_matrix,      aes(x = tweet_test_pred2, y = tweet_test_labels)) +
+confusion_matrix2 %>% ggplot(aes(x = tweet_validation_pred2, y = tweet_validation_labels)) +
   geom_tile(aes(fill = Freq)) +
   geom_text(aes(label = sprintf("%1.0f", Freq)), vjust = 1) +
   scale_fill_gradient(low = "#ff7f50",
                       high = "#003767",
                       trans = "log")
 ```
-####77.2% classified accurately
+####76.38% classified accurately
+#
+#
+#Final Test on test dataset
+```{r}
+tweet_classifier2 %>% predict(tweet_test) -> tweet_test_pred
 
+tweet_test_pred %>% confusionMatrix(tweet_test_labels) -> conf3
+
+conf3
+
+confusion_matrix3 <- as.data.frame(table(tweet_test_pred, tweet_test_labels))
+
+confusion_matrix3 %>% ggplot(aes(x = tweet_test_pred, y = tweet_test_labels)) +
+  geom_tile(aes(fill = Freq)) +
+  geom_text(aes(label = sprintf("%1.0f", Freq)), vjust = 1) +
+  scale_fill_gradient(low = "#ff7f50",
+                      high = "#003767",
+                      trans = "log")
+```
+####77.67% classified correctly
