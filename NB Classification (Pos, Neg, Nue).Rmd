@@ -1,5 +1,5 @@
 ---
-title: "R Notebook"
+title: "Positive/Negative/Neutral Naive Bayes Classification"
 output: rmarkdown::github_document
 ---
 
@@ -76,7 +76,6 @@ tweet_corpus %>% tm_map(content_transformer(tolower)) -> tweet_corpus_clean
 tweet_corpus_clean %>% tm_map(removeNumbers) %>% 
   tm_map(removeWords, stopwords('english')) %>% 
   tm_map(removePunctuation) -> tweet_corpus_clean
-
 
 #Check to see if corpus is clean
 tweet_corpus_clean[1:5] %>% lapply(as.character)
