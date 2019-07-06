@@ -1,4 +1,4 @@
-R Notebook
+Positive/Negative Naive Bayes Classification
 ================
 
 Load Library
@@ -7,121 +7,40 @@ Load Library
 ``` r
 library(readr)
 library(tm)
-```
-
-    ## Warning: package 'tm' was built under R version 3.4.3
-
-    ## Loading required package: NLP
-
-``` r
 library(SnowballC)
 library(wordcloud)
-```
-
-    ## Loading required package: RColorBrewer
-
-``` r
 library(e1071)
 library(gmodels)
 library(ggplot2)
-```
-
-    ## 
-    ## Attaching package: 'ggplot2'
-
-    ## The following object is masked from 'package:NLP':
-    ## 
-    ##     annotate
-
-``` r
 library(caret)
-```
-
-    ## Warning: package 'caret' was built under R version 3.4.4
-
-    ## Loading required package: lattice
-
-    ## Warning in as.POSIXlt.POSIXct(Sys.time()): unknown timezone 'zone/tz/2018c.
-    ## 1.0/zoneinfo/America/Los_Angeles'
-
-``` r
 library(ROCR)
-```
-
-    ## Loading required package: gplots
-
-    ## 
-    ## Attaching package: 'gplots'
-
-    ## The following object is masked from 'package:wordcloud':
-    ## 
-    ##     textplot
-
-    ## The following object is masked from 'package:stats':
-    ## 
-    ##     lowess
-
-``` r
 library(dplyr)
 ```
-
-    ## 
-    ## Attaching package: 'dplyr'
-
-    ## The following objects are masked from 'package:stats':
-    ## 
-    ##     filter, lag
-
-    ## The following objects are masked from 'package:base':
-    ## 
-    ##     intersect, setdiff, setequal, union
 
 Step 1: Load the data
 =====================
 
 ``` r
 tweets <- read_csv("Tweets.csv")
-```
-
-    ## Parsed with column specification:
-    ## cols(
-    ##   tweet_id = col_double(),
-    ##   airline_sentiment = col_character(),
-    ##   airline_sentiment_confidence = col_double(),
-    ##   negativereason = col_character(),
-    ##   negativereason_confidence = col_double(),
-    ##   airline = col_character(),
-    ##   airline_sentiment_gold = col_character(),
-    ##   name = col_character(),
-    ##   negativereason_gold = col_character(),
-    ##   retweet_count = col_integer(),
-    ##   text = col_character(),
-    ##   tweet_coord = col_character(),
-    ##   tweet_created = col_character(),
-    ##   tweet_location = col_character(),
-    ##   user_timezone = col_character()
-    ## )
-
-``` r
 tweets %>% head(10)
 ```
 
     ## # A tibble: 10 x 15
-    ##           tweet_id airline_sentime… airline_sentiment_conf… negativereason
-    ##              <dbl> <chr>                              <dbl> <chr>         
-    ##  1         5.70e¹⁷ neutral                            1.00  <NA>          
-    ##  2         5.70e¹⁷ positive                           0.349 <NA>          
-    ##  3         5.70e¹⁷ neutral                            0.684 <NA>          
-    ##  4         5.70e¹⁷ negative                           1.00  Bad Flight    
-    ##  5         5.70e¹⁷ negative                           1.00  Can't Tell    
-    ##  6         5.70e¹⁷ negative                           1.00  Can't Tell    
-    ##  7         5.70e¹⁷ positive                           0.674 <NA>          
-    ##  8         5.70e¹⁷ neutral                            0.634 <NA>          
-    ##  9         5.70e¹⁷ positive                           0.656 <NA>          
-    ## 10         5.70e¹⁷ positive                           1.00  <NA>          
+    ##    tweet_id airline_sentime… airline_sentime… negativereason
+    ##       <dbl> <chr>                       <dbl> <chr>         
+    ##  1  5.70e17 neutral                     1     <NA>          
+    ##  2  5.70e17 positive                    0.349 <NA>          
+    ##  3  5.70e17 neutral                     0.684 <NA>          
+    ##  4  5.70e17 negative                    1     Bad Flight    
+    ##  5  5.70e17 negative                    1     Can't Tell    
+    ##  6  5.70e17 negative                    1     Can't Tell    
+    ##  7  5.70e17 positive                    0.674 <NA>          
+    ##  8  5.70e17 neutral                     0.634 <NA>          
+    ##  9  5.70e17 positive                    0.656 <NA>          
+    ## 10  5.70e17 positive                    1     <NA>          
     ## # ... with 11 more variables: negativereason_confidence <dbl>,
-    ## #   airline <chr>, airline_sentiment_gold <chr>, name <chr>,
-    ## #   negativereason_gold <chr>, retweet_count <int>, text <chr>,
+    ## #   airline <chr>, airline_sentiment_gold <lgl>, name <chr>,
+    ## #   negativereason_gold <lgl>, retweet_count <dbl>, text <chr>,
     ## #   tweet_coord <chr>, tweet_created <chr>, tweet_location <chr>,
     ## #   user_timezone <chr>
 
@@ -197,7 +116,9 @@ tweets %>% ggplot(aes(x = airline, fill = airline_sentiment)) +
   ggtitle("Frequency of each classified tweet per Airline")
 ```
 
-![](NB_Classification_Binary__Pos,_Neg__files/figure-markdown_github/unnamed-chunk-5-4.png) \# \# \#\#\#\#Begin preparing the text data
+![](NB_Classification_Binary__Pos,_Neg__files/figure-markdown_github/unnamed-chunk-5-4.png)
+
+#### Begin preparing the text data
 
 ``` r
 #Get rid of special characters
@@ -368,7 +289,9 @@ tweet_validation_labels %>% table() %>% prop.table()
 tweet_corpus_clean %>% wordcloud(max.words = 150, min.freq = 10, random.order = F)
 ```
 
-![](NB_Classification_Binary__Pos,_Neg__files/figure-markdown_github/unnamed-chunk-10-1.png) \# \# \#\#\#\#Subset the data to visualize common words for each sentiment
+![](NB_Classification_Binary__Pos,_Neg__files/figure-markdown_github/unnamed-chunk-10-1.png)
+
+#### Subset the data to visualize common words for each sentiment
 
 ``` r
 tweets %>% subset(airline_sentiment== "positive") -> positive
@@ -385,7 +308,10 @@ positive$text %>% wordcloud(max.words = 100, scale = c(3, .5))
 negative$text %>% wordcloud(max.words = 100, scale = c(3, .5))
 ```
 
-![](NB_Classification_Binary__Pos,_Neg__files/figure-markdown_github/unnamed-chunk-12-2.png) \# \# \#Step 3: Training a model on the data
+![](NB_Classification_Binary__Pos,_Neg__files/figure-markdown_github/unnamed-chunk-12-2.png)
+
+Step 3: Training a model on the data
+====================================
 
 ``` r
 tweet_dtm_train %>% removeSparseTerms(0.999) -> tweet_dtm_freq_train
@@ -450,6 +376,7 @@ conf
     ##     P-Value [Acc > NIR] : <2e-16          
     ##                                           
     ##                   Kappa : 0.6643          
+    ##                                           
     ##  Mcnemar's Test P-Value : 0.4912          
     ##                                           
     ##             Sensitivity : 0.9284          
@@ -475,7 +402,12 @@ confusion_matrix %>% ggplot(aes(x = tweet_validation_pred, y = tweet_validation_
                       trans = "log")
 ```
 
-![](NB_Classification_Binary__Pos,_Neg__files/figure-markdown_github/unnamed-chunk-16-1.png) \#\#\#\#89.12% classified accurately \# \# \#Step 5: Improve the model
+![](NB_Classification_Binary__Pos,_Neg__files/figure-markdown_github/unnamed-chunk-16-1.png)
+
+#### 89.12% classified accurately
+
+Step 5: Improve the model
+=========================
 
 ``` r
 tweet_train %>% naiveBayes(tweet_train_labels, laplace = 1) -> tweet_classifier2
@@ -500,6 +432,7 @@ conf2
     ##     P-Value [Acc > NIR] : <2e-16         
     ##                                          
     ##                   Kappa : 0.6847         
+    ##                                          
     ##  Mcnemar's Test P-Value : 0.5224         
     ##                                          
     ##             Sensitivity : 0.9329         
@@ -525,7 +458,12 @@ confusion_matrix2 %>% ggplot(aes(x = tweet_validation_pred2, y = tweet_validatio
                       trans = "log")
 ```
 
-![](NB_Classification_Binary__Pos,_Neg__files/figure-markdown_github/unnamed-chunk-17-1.png) \#\#\#\#89.79% classified accurately \# \#Final Test on test dataset
+![](NB_Classification_Binary__Pos,_Neg__files/figure-markdown_github/unnamed-chunk-17-1.png)
+
+#### 89.79% classified accurately
+
+Final Test on test dataset
+==========================
 
 ``` r
 tweet_classifier2 %>% predict(tweet_test) -> tweet_test_pred
@@ -548,6 +486,7 @@ conf3
     ##     P-Value [Acc > NIR] : <2e-16          
     ##                                           
     ##                   Kappa : 0.7314          
+    ##                                           
     ##  Mcnemar's Test P-Value : 0.2639          
     ##                                           
     ##             Sensitivity : 0.9433          
@@ -573,4 +512,6 @@ confusion_matrix3 %>% ggplot(aes(x = tweet_test_pred, y = tweet_test_labels)) +
                       trans = "log")
 ```
 
-![](NB_Classification_Binary__Pos,_Neg__files/figure-markdown_github/unnamed-chunk-18-1.png) \#\#\#\#91.61% classified correctly
+![](NB_Classification_Binary__Pos,_Neg__files/figure-markdown_github/unnamed-chunk-18-1.png)
+
+#### 91.61% classified correctly

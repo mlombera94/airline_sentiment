@@ -4,7 +4,7 @@ output: rmarkdown::github_document
 
 ---
 #Load Library
-```{r, results= "hide"}
+```{r, results= "hide", message=FALSE, warning=FALSE}
 library(readr)
 library(tm)
 library(SnowballC)
@@ -16,22 +16,19 @@ library(caret)
 library(ROCR)
 library(dplyr)
 ```
-#
-#
+
 #Step 1: Load the data
-```{r}
+```{r message=FALSE, warning=FALSE}
 tweets <- read_csv("Tweets.csv")
 tweets %>% head(10)
 ```
-#
-#
+
 #Binary Classification (Filter out nuetral sentiment)
 ```{r}
 tweets %>% subset(airline_sentiment %in% c("positive", "negative")) -> tweets
 tweets$airline_sentiment %>% table()
 ```
-#
-#
+
 ####Check proportions of negative and positive
 ```{r}
 #convert to factor before using table
@@ -44,7 +41,7 @@ tweets$airline_sentiment %>% table()
 #sum of total tweets each airline has
 tweets$airline %>% table()
 ```
-#
+
 ```{r}
 #Pie chart comparing the ratio of negative and positive tweets
 tweets %>% ggplot(aes(x= factor(1), fill= airline_sentiment)) + 
@@ -66,8 +63,7 @@ tweets %>% ggplot(aes(x = airline, fill = airline_sentiment)) +
   geom_bar() + 
   ggtitle("Frequency of each classified tweet per Airline")
 ```
-#
-#
+
 ####Begin preparing the text data
 ```{r}
 #Get rid of special characters
@@ -88,8 +84,7 @@ tweets$text %>% VectorSource() %>% VCorpus() -> tweet_corpus
 
 tweet_corpus[1:5] %>% lapply(as.character)
 ```
-#
-#
+
 ####Clean up Corpus
 ```{r}
 #Convert text to lowercase, remove numbers, stopwords, and punctuation 
@@ -101,8 +96,7 @@ tweet_corpus %>% tm_map(content_transformer(tolower)) %>%
 #Check to see if clean
 lapply(tweet_corpus_clean[1:5], as.character)
 ```
-#
-#
+
 ####Wordstem and check final clean corpus 
 ```{r}
 #wordstem and strip whitespace 
@@ -120,8 +114,7 @@ tweet_corpus_clean %>% DocumentTermMatrix() -> tweet_dtm
 tweet_corpus_clean[1:5] %>% lapply(as.character)
 tweet_dtm
 ```
-#
-#
+
 ####Create training and test dataframe and lables
 ```{r}
 #create random sample
@@ -143,27 +136,23 @@ tweet_train_labels %>% table() %>% prop.table()
 tweet_test_labels %>% table() %>% prop.table()
 tweet_validation_labels %>% table() %>% prop.table()
 ```
-#
-#
+
 ####Word Cloud visualization
 ```{r}
 tweet_corpus_clean %>% wordcloud(max.words = 150, min.freq = 10, random.order = F)
 ```
-#
-#
+
 ####Subset the data to visualize common words for each sentiment
 ```{r}
 tweets %>% subset(airline_sentiment== "positive") -> positive
 tweets %>% subset(airline_sentiment== "negative") -> negative
 ```
-#
-#
-```{r}
+
+```{r, message=FALSE, warning=FALSE}
 positive$text %>% wordcloud(max.words = 100, scale = c(3, .5))
 negative$text %>% wordcloud(max.words = 100, scale = c(3, .5))
 ```
-#
-#
+
 #Step 3: Training a model on the data
 ```{r, results= "hide"}
 tweet_dtm_train %>% removeSparseTerms(0.999) -> tweet_dtm_freq_train
@@ -172,16 +161,14 @@ tweet_dtm_freq_train
 tweet_dtm_train %>% findFreqTerms(10) -> tweet_freq_words
 str(tweet_freq_words)
 ```
-#
-#
+
 ####Create DTMs with only the frequent terms
 ```{r, results= "hide"}
 tweet_dtm_freq_train <- tweet_dtm_train[ , tweet_freq_words]
 tweet_dtm_freq_validation <- tweet_dtm_validation[ , tweet_freq_words]
 tweet_dtm_freq_test <- tweet_dtm_test[ , tweet_freq_words]
 ```
-#
-#
+
 ####Create a function to convert counts to a factor and apply it to columns of train/test data and begin training a model on the data
 ```{r}
 convert_counts <- function(x) {
@@ -194,8 +181,7 @@ tweet_dtm_freq_test %>% apply(MARGIN = 2, convert_counts) -> tweet_test
 
 tweet_train %>% naiveBayes(tweet_train_labels) -> tweet_classifier
 ```
-#
-#
+
 #Step 4: Evaluate the model's performance
 ```{r}
 tweet_classifier %>% predict(tweet_validation) -> tweet_validation_pred
@@ -215,9 +201,9 @@ confusion_matrix %>% ggplot(aes(x = tweet_validation_pred, y = tweet_validation_
                       high = "#003767",
                       trans = "log")
 ```
+
 ####89.12% classified accurately
-#
-#
+
 #Step 5: Improve the model
 ```{r}
 tweet_train %>% naiveBayes(tweet_train_labels, laplace = 1) -> tweet_classifier2
@@ -237,8 +223,9 @@ confusion_matrix2 %>% ggplot(aes(x = tweet_validation_pred2, y = tweet_validatio
                       high = "#003767",
                       trans = "log")
 ```
+
 ####89.79% classified accurately
-#
+
 #Final Test on test dataset
 ```{r}
 tweet_classifier2 %>% predict(tweet_test) -> tweet_test_pred
@@ -256,4 +243,5 @@ confusion_matrix3 %>% ggplot(aes(x = tweet_test_pred, y = tweet_test_labels)) +
                       high = "#003767",
                       trans = "log")
 ```
+
 ####91.61% classified correctly
